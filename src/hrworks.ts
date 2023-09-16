@@ -32,11 +32,9 @@ class HrWorks {
         API_ACCESS_KEY_SECRET: this.apiAccessKeySecret,
         API_URL: this.apiUrl});
     } else {
-      logger.fatal(
-        new Error(
-          'Error reading environment variables. Make sure to define API_ACCESS_KEY_ID and API_ACCESS_KEY_SECRET'
-        )
-      );
+      logger.fatal({
+        error: 'Error reading environment variables. Make sure to define API_ACCESS_KEY_ID and API_ACCESS_KEY_SECRET'
+      });
     }
   }
 
@@ -58,8 +56,8 @@ class HrWorks {
             accessKey: this.apiAccessKeyId,
             secretAccessKey: this.apiAccessKeySecret
           }
-        })
-        .json();
+        }).json();
+
       logger.debug({API_ACCESS_KEY_SECRET: result.token});
       return result.token;
     } catch (error) {
@@ -71,6 +69,7 @@ class HrWorks {
       });
     }
   }
+
   async fetchOnboardingDocuments(){
     try {
       const result = await this.gotInstance.get("persons/onboarding").json();
@@ -78,9 +77,25 @@ class HrWorks {
     }catch (error){
       logger.fatal({
         error: error})
-
     }
   }
-}
+
+/*
+  async fetchPersonMasterData(){
+    try {
+      const result = await this.gotInstance.get("persons/master-data").json();
+      logger.debug(result);
+    }catch (error){
+      logger.fatal({
+        error: error})
+    }
+  }
+*/
+
+  }
+
+
+
+
 
 export { HrWorks };
