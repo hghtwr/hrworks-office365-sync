@@ -14,6 +14,24 @@ To do this, it browses the recent [Onboarding Documents] of HRworks and then cre
 
 3. Process the `onboarding document`
 
+**FIRST APPROACH**
+
+```mermaid
+flowchart TD
+    A[Get /person] --> B{'personId' set?}
+    B -->|Yes| C[Stop]
+    B -->|No| E{joinDate - today < 14 days?}
+    E-->|No| C
+    E-->|Yes| F[Create standard email id]
+    F-->G{Email already exists?}
+    G-->|Yes| H[Create alternative email id]
+    H-->G
+    G-->|No| I[Add user] --> J[Send welcome mail to privateEmail]
+    I--> K[Set personId to email]
+```
+
+**MORE SOPHISTICATED APPROACH** --- This would be better if people don't have email as personId (username).
+
 ```mermaid
 flowchart TD
     A[Onboarding document received] --> B{'Office365 created' == true?}
