@@ -3,7 +3,7 @@ import {Client} from '@microsoft/microsoft-graph-client';
 import {ClientSecretCredential} from '@azure/identity';
 import {TokenCredentialAuthenticationProvider} from '@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials/index.js'
 import logger from './logger.js';
-import { error } from "console";
+import { PersonBaseData } from "./hrworks.js";
 
 
 let clientSecretCredentials: ClientSecretCredential | undefined = undefined;
@@ -31,6 +31,8 @@ export function initializeGraphForAppOnlyAuth(settings: AppSettings) {
       appClient = Client.initWithMiddleware({authProvider: authProvider});
     }
 }
+
+
 //Only necessary for debugging if you'd like to check the token.
 export async function getAppOnlyToken(): Promise<string> {
   try {
@@ -47,9 +49,19 @@ export async function getAppOnlyToken(): Promise<string> {
   }
 }
 
-export async function searchUserId() {
+export async function listUsers() {
 
   return appClient.api("/users").get();
 
+
+}
+
+
+
+export async function createMissingUsers(personBaseData: PersonBaseData[]){
+
+  for(let i = 0; i < personBaseData.length; i++){
+    logger.debug({message: `Create user for ${personBaseData[i].personnelNumber}: ${personBaseData[i].lastName}, ${personBaseData[i].firstName}` })
+  }
 
 }

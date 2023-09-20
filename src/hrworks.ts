@@ -1,8 +1,7 @@
-import got from 'got';
+import {got, Response} from 'got';
 
-import { Logger } from 'tslog';
+import logger from './logger.js';
 
-const logger = new Logger({ name: 'hrworks', minLevel: parseInt(process.env.LOG_LEVEL), maskPlaceholder: "***", maskValuesOfKeys: ["API_ACCESS_KEY_SECRET", "secretAccessKey"] });
 
 interface PersonBaseData{
   firstName: string;
@@ -10,8 +9,8 @@ interface PersonBaseData{
   personId: string;
   personnelNumber: string;
   datevPersonelNumber: string;
+  orgUnit: string;
 }
-type ListPersonsResponse = Record<string, PersonBaseData[]>;
 
 class HrWorks {
   apiAccessKeyId: string;
@@ -79,33 +78,46 @@ class HrWorks {
     }
   }
 
-  async fetchPersonMasterData(): Promise<ListPersonsResponse> {
+
+  async fetchPersonMasterData(): Promise<PersonBaseData[]> {
     try {
-      const result: ListPersonsResponse = await this.gotInstance.get("persons", {searchParams: {onlyActive: true}}).json();
-      logger.info("Successfully fetched person master data");
-      logger.debug(result);
-      return result;
+      const paginatedResponses = await this.gotInstance.paginate.all("persons", {
+        pagination: {
+          // we have to put it into an array as the response is not valid json which the pagination api cannot handle
+        transform: (response: Response): PersonBaseData[] =>{
+          const body = JSON.parse(response.body as string); // this is invalid as it's  {'key': PersonBaseData[]}
+          const results = []
+          for (const orgUnit in body){
+            for (let i = 0; i < body[orgUnit].length; i++){
+
+              body[orgUnit][i]["orgUnit"]= orgUnit;             // add the organizational unit as attribute to the flat datastructure
+              results.push(body[orgUnit][i]);
+            }
+          }
+          return results;
+        }
+      }
+    });
+    logger.debug(paginatedResponses);
+    logger.info("Successfully fetched person master data");
+    return paginatedResponses;
     }catch (error) {
       logger.fatal({
-        error: error})
+      error: error})
     }
   }
 
-  filterMissingEMails(masterData: ListPersonsResponse): PersonBaseData[] {
-    const mergedUsers: PersonBaseData[] = [];
-
+  filterMissingEMails(masterData: PersonBaseData[]): PersonBaseData[] {
+    let filteredUsers: PersonBaseData[] = [];
     if (process.env.MASTER_DATA_FILTER_REGEX_PATTERN !== "" && process.env.MASTER_DATA_FILTER_REGEX_PATTERN != undefined){
-      for (const k in masterData){
-        const filteredUsers = masterData[k].filter((personBaseData: PersonBaseData) =>{
+          filteredUsers = masterData.filter((personBaseData: PersonBaseData) =>{
             return personBaseData.personId.search(process.env.MASTER_DATA_FILTER_REGEX_PATTERN) === -1 ;
-          })
-        mergedUsers.push(...filteredUsers);
-      }
-      logger.info("Filtered users for regex: " + process.env.MASTER_DATA_FILTER_REGEX_PATTERN + ". Found " + mergedUsers.length + " elements");
+          });
+      logger.info("Filtered users for regex: " + process.env.MASTER_DATA_FILTER_REGEX_PATTERN + ". Found " + filteredUsers.length + " elements");
       logger.debug({message: "Filtered users for regex expresssion",
                     "MASTER_DATA_FILTER_REGEX_PATTERN": process.env.MASTER_DATA_FILTER_REGEX_PATTERN,
-                    "filteredUsers": mergedUsers});
-      return mergedUsers;
+                    "filteredUsers": filteredUsers});
+      return filteredUsers;
     }else{
       logger.error({message: "MASTER_DATA_FILTER_REGEX_PATTERN is not defined"});
     }
@@ -116,4 +128,4 @@ class HrWorks {
 
 
 
-export { HrWorks, ListPersonsResponse, PersonBaseData };
+export { HrWorks, PersonBaseData };
