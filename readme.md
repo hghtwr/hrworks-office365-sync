@@ -18,6 +18,17 @@ To do this, it browses the recent [Onboarding Documents] of HRworks and then cre
 
 ```mermaid
 flowchart TD
+  A[get /person] --> B[get azureAD entities] --> C{'personId' == upn in AAD?}
+  C --> |Yes| D[Stop]
+  C --> |No| E[Create standard email id]
+  E --> F{Email already exists?}
+  F --> |Yes| G[Create alternative email]
+  F --> |No| H[Add user] --> I[Update employeeId] --> J[Send welcome mail]
+```
+
+
+```mermaid
+flowchart TD
     A[Get /person] --> B{'personId' set?}
     B -->|Yes| C[Stop]
     B -->|No| E{joinDate - today < 14 days?}
