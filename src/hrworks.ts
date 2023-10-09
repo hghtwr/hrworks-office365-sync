@@ -10,6 +10,7 @@ interface PersonBaseData {
   datevPersonelNumber: string;
   orgUnit: string;
   adUserId?: string;
+  userUpnCount?: number;
 }
 
 class HrWorks {

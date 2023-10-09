@@ -21,8 +21,8 @@ const matchedData: PersonBaseData[] = helper.matchUpnToMasterData(
   adMasterData,
   hrworksMasterData
 );
-
-hrWorks.filterMissingEMails(hrworksMasterData)
+helper.getMissingUsers(matchedData);
+//hrWorks.filterMissingEMails(hrworksMasterData)
 
 // Now, here we can check if the personellId of HRworks matches the employeeId on the directory element.
 // This can later serve as unique identifier. For this check we will match the persons by email address.
