@@ -9,6 +9,13 @@ export interface UpnData {
 /*
 export function buildEmailAddress(baseData: PersonBaseData) {}
 */
+
+/**
+ *
+ * @param upnData
+ * @param baseData
+ * @returns
+ */
 export function matchUpnToMasterData(
   upnData: UpnData[],
   baseData: PersonBaseData[]

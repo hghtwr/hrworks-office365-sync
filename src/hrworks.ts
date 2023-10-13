@@ -1,7 +1,7 @@
 import { got, Response } from 'got';
 
 import logger from './logger.js';
-
+import PersonDetailData from './types/PersonDetailData.js'
 interface PersonBaseData {
   firstName: string;
   lastName: string;
@@ -12,7 +12,15 @@ interface PersonBaseData {
   adUserId?: string;
   userUpnCount?: number;
 }
-
+interface ReducedPersonDetailData{
+  privateEmail: string;
+  position: string;
+  personnelNumber: string;
+  lastName: string;
+  firstName: string;
+  personId: string;
+  businessEmail?: string;
+}
 class HrWorks {
   apiAccessKeyId: string;
   apiAccessKeySecret: string;
@@ -59,7 +67,7 @@ class HrWorks {
     });
   }
 
-  async fetchToken() {
+  private async fetchToken() {
     try {
       const result: { token: string } = await got
         .post(this.apiUrl + '/authentication', {
@@ -83,6 +91,10 @@ class HrWorks {
     }
   }
 
+  /**
+   * Get the general person master data (limited set of fields)
+   * @returns Promise<PersonBaseData[]>
+   */
   async fetchPersonMasterData(): Promise<PersonBaseData[]> {
     try {
       const paginatedResponses = await this.gotInstance.paginate.all(
@@ -116,6 +128,71 @@ class HrWorks {
     }
   }
 
+
+ /**
+  * You can use this to reduce any set of extensive PersonDetailData to a limited number of fields in ReducedPersonDetailData.
+  * @param personDetailData An response from persons/master-data (or fetchDetailMasterData)
+  * @returns ReducedPersonDetailData[]
+  */
+  reduceMasterData(personDetailData: PersonDetailData[]): ReducedPersonDetailData[] {
+    try {
+      return personDetailData.map(person => {
+        return {
+          privateEmail: person.privateEmail,
+          position: person.position,
+          personnelNumber: person.personnelNumber,
+          lastName: person.lastName,
+          firstName: person.firstName,
+          personId: person.personId
+        }
+      })
+    } catch (error) {
+      logger.fatal({
+        error: error
+      });
+  }
+}
+
+  /**
+   * Get's the detailed person master data for a set of PersonBaseData[]
+   * @param personBaseData The personBaseData which id's will be used to obtain the full master-data of this user
+   * @returns Promise<PersonDetailData[]>
+   */
+  async fetchDetailMasterData(personBaseData: PersonBaseData[]): Promise<PersonDetailData[]> {
+    try {
+      const personIds = personBaseData.map(person => person.personId);
+      const paginatedResponses: PersonDetailData[] = await this.gotInstance.paginate.all(
+        'persons/master-data',
+        {
+          searchParams: {
+            persons: `[${personIds.toString()}]`,
+            onlyActive: true
+          },
+          pagination: {
+            // we have to put it into an array as the response is not valid json which the pagination api cannot handle
+            transform: (response: Response) => {
+              const body = JSON.parse(response.body as string); // this is invalid as it's  {'key': PersonBaseData[]}
+              const results = [];
+              results.push(...body.persons);
+              return results;
+            }
+          }
+        });
+        logger.info(`Successfully fetched ${paginatedResponses.length} records person master detail data`);
+        return paginatedResponses;
+      } catch (error) {
+        logger.fatal({
+          error: error
+        });
+      }
+    };
+
+
+  /**
+   * DEPRECATED.
+   * @param masterData
+   * @returns
+   */
   filterMissingEMails(masterData: PersonBaseData[]): PersonBaseData[] {
     let filteredUsers: PersonBaseData[] = [];
     const excludedPersonnelNumbers =
@@ -158,4 +235,4 @@ class HrWorks {
   }
 }
 
-export { HrWorks, PersonBaseData };
+export { HrWorks, PersonBaseData, ReducedPersonDetailData };

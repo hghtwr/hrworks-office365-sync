@@ -122,7 +122,7 @@ async function listSubscribedSkus(): Promise<SubscribedSku[]> {
   }
 }
 
-export async function createMissingUsers(personBaseData: PersonBaseData[]) {
+export async function createUsers(personBaseData: PersonBaseData[]) {
   for (let i = 0; i < personBaseData.length; i++) {
     logger.debug({
       message: `Create user for ${personBaseData[i].personnelNumber}: ${personBaseData[i].lastName}, ${personBaseData[i].firstName}`
