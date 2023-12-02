@@ -10,7 +10,9 @@ import { ClientSecretCredential } from '@azure/identity';
 import { TokenCredentialAuthenticationProvider } from '@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials/index.js';
 import logger from './logger.js';
 import { ReducedPersonDetailData } from './hrworks.js';
-import { create } from 'domain';
+import { getRandomValues, randomBytes, randomInt } from 'crypto';
+import { rmdir } from 'fs';
+import { count } from 'console';
 
 let clientSecretCredentials: ClientSecretCredential | undefined = undefined;
 let appClient: Client | undefined = undefined;
@@ -145,14 +147,17 @@ async function getFreshUpn(personBaseData: ReducedPersonDetailData) {
 
   let existingUser = await listUsers(undefined, `mail eq '${normalizedName}${process.env.EMAIL_DOMAIN}'`);
   let suffix = 1;
-
+  logger.debug({
+    message: "Checking for existing users",
+    existingUser: existingUser
+  });
   while(existingUser.length != 0) {
     normalizedName = normalizedName+suffix;
     existingUser = await listUsers([], `'mail eq '${normalizedName}${process.env.EMAIL_DOMAIN}'`);
     suffix++;
   }
 
-  return `${normalizedName}${process.env.EMAIL_DOMAIN}`;
+  return normalizedName
 }
 
 /**
@@ -165,18 +170,18 @@ async function getFreshUpn(personBaseData: ReducedPersonDetailData) {
 export function scaffoldAndCreateUsers(reducedPersonBaseData: ReducedPersonDetailData[]): Promise<ReducedPersonDetailData>[]{
   return reducedPersonBaseData.map(async person => {
     try {
-      const upn = await getFreshUpn(person);
+      const upnName = await getFreshUpn(person);
 
       const createObject = {
         accountEnabled: true,
         displayName: `${person.firstName} ${person.lastName}`,
-        mailNickname: upn,
+        mailNickname: upnName,
         passwordProfile: {
           "forceChangePasswordNextSignIn": true,
           "forceChangePasswordNextSignInWithMfa": false,
-          "password": "string"
+          "password": createRandomPassword()
         },
-        userPrincipleName: upn
+        userPrincipalName: `${upnName}${process.env.EMAIL_DOMAIN}`
       }
       logger.debug({
         message: `Scaffold user for ${person.personnelNumber}: ${person.lastName}, ${person.firstName}.`,
@@ -184,7 +189,7 @@ export function scaffoldAndCreateUsers(reducedPersonBaseData: ReducedPersonDetai
       });
 
       await createUser(createObject);
-      person.businessEmail = upn;
+      person.businessEmail = createObject.userPrincipalName
       return person;
 
     }catch (error) {
@@ -202,7 +207,13 @@ export function scaffoldAndCreateUsers(reducedPersonBaseData: ReducedPersonDetai
  */
 async function createUser(createObject: User) {
   try {
-      const response = await appClient.api('/users').post(createObject);
+
+      const response = await appClient.api('/users/').post(createObject);
+      logger.debug({
+
+        message: `POST to /users`,
+        response: response,
+      })
       const user: User = response.body;
       return user;
   }catch (error) {
@@ -213,4 +224,31 @@ async function createUser(createObject: User) {
   }
 }
 
+export function createRandomPassword(){
 
+  // Need some special chars in that password
+  //Create base password (numbers + lowercase chars);
+  let randomString = randomBytes(24).toString('hex');
+  const specials = ["!", "?", "$", "§", "%", "-", ".", " ", ",", ";", ".", "#", "~"];
+  let countSpecials = 0;
+  let countUppercase = 0;
+
+  while(countSpecials == 0 || countUppercase == 0) {
+  //Give every char the chance to be replaced by special char or uppercase letter
+  for(let i = 0; i < randomInt(1, randomString.length); i++){
+    //Not every char should be replaced, only with change < 0.3
+    if(randomInt(1,11) > 6) {
+      randomString = randomString.substring(0,i) + specials[randomInt(1, specials.length)] + randomString.substring(i+1);
+      countSpecials++;
+    // Let add another chance of 50% of replacing a char by an uppercase letter
+  }else if (randomString[i].match(/[a-z]/i) && randomInt(1,11) <= 5) {
+
+    randomString = randomString.substring(0,i) + randomString[i].toUpperCase() + randomString.substring(i+1);
+    countUppercase++;
+    }
+  }
+}
+
+
+  return randomString;
+}
