@@ -147,9 +147,7 @@ async function getFreshUpn(personBaseData: ReducedPersonDetailData) {
 
   while(existingUser.length != 0) {
     normalizedName = normalizedName+suffix;
-    existingUser = await listUsers(["select"], `filter`);
-
-    //existingUser = await listUsers([], `'equals(mail,\'${normalizedName}${process.env.EMAIL_DOMAIN}\')'`);
+    existingUser = await listUsers([], `'mail eq '${normalizedName}${process.env.EMAIL_DOMAIN}'`);
     suffix++;
   }
 
