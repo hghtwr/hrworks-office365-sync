@@ -5,11 +5,11 @@ import {
   PageIterator,
   PageIteratorCallback
 } from '@microsoft/microsoft-graph-client';
-import { Person, SubscribedSku, User } from '@microsoft/microsoft-graph-types';
+import { SubscribedSku, User } from '@microsoft/microsoft-graph-types';
 import { ClientSecretCredential } from '@azure/identity';
 import { TokenCredentialAuthenticationProvider } from '@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials/index.js';
 import logger from './logger.js';
-import { PersonBaseData, ReducedPersonDetailData } from './hrworks.js';
+import { ReducedPersonDetailData } from './hrworks.js';
 import { create } from 'domain';
 
 let clientSecretCredentials: ClientSecretCredential | undefined = undefined;
@@ -154,14 +154,14 @@ async function getFreshUpn(personBaseData: ReducedPersonDetailData) {
   return `${normalizedName}${process.env.EMAIL_DOMAIN}`;
 }
 
-export async function createUsers(personBaseData: ReducedPersonDetailData[]) {
-  for (let i = 0; i < personBaseData.length; i++) {
+export function scaffoldAndCreateUser(reducedPersonBaseData: ReducedPersonDetailData[]): Promise<ReducedPersonDetailData>[]{
+  return reducedPersonBaseData.map(async person => {
     try {
-      const upn = await getFreshUpn(personBaseData[i]);
+      const upn = await getFreshUpn(person);
 
       const createObject = {
         accountEnabled: true,
-        displayName: `${personBaseData[i].firstName} ${personBaseData[i].lastName}`,
+        displayName: `${person.firstName} ${person.lastName}`,
         mailNickname: upn,
         passwordProfile: {
           "forceChangePasswordNextSignIn": true,
@@ -171,16 +171,33 @@ export async function createUsers(personBaseData: ReducedPersonDetailData[]) {
         userPrincipleName: upn
       }
       logger.debug({
-        message: `Create user for ${personBaseData[i].personnelNumber}: ${personBaseData[i].lastName}, ${personBaseData[i].firstName}.`,
+        message: `Scaffold user for ${person.personnelNumber}: ${person.lastName}, ${person.firstName}.`,
         createObject: createObject,
       });
+
+      await createUser(createObject);
+      person.businessEmail = upn;
+      return person;
+
     }catch (error) {
       logger.info({
-        message: "Error creating user",
+        message: "Error scaffolding user",
         error: error
       })
     }
+  });
+}
 
+async function createUser(createObject: User) {
+  try {
+      const response = await appClient.api('/users').post(createObject);
+      const user: User = response.body;
+      return user;
+  }catch (error) {
+    logger.info({
+      message: "Error creating user",
+      error: error
+    })
   }
 }
 
