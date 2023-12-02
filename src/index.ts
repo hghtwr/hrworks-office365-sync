@@ -33,7 +33,7 @@ if(process.env.MODE === "Create" || process.env.MODE === "CreateSync") {
   const reducedDetailMasterData: ReducedPersonDetailData[] = hrWorks.reduceMasterData(await hrWorks.fetchDetailMasterData(missingUsers));
 
   // Now we can go ahead and create the user in AAD. Later it will be synced if sync mode is in CreateSync.
-  const createdUsers: ReducedPersonDetailData[] = await graph.scaffoldAndCreateUser(reducedDetailMasterData);
+  const createdUsers: ReducedPersonDetailData[] = await graph.scaffoldAndCreateUsers(reducedDetailMasterData);
 
   //Those newly created UPN's must now be synched with hrWorks to update the personId field.
   //Once the personId is fitting the process.env.MASTER_DATA_FILTER_REGEX_PATTERN used in hrWorks.filterMissingEmails, they will no longer be considered for creation.
@@ -48,13 +48,3 @@ if(process.env.MODE === "Sync" || process.env.MODE === "CreateSync"){
 
 }
 
-//Get the users that have no personId that matches the regex yet. These users have to be created in AAD later.
-
-
-
-
-// Now, here we can check if the personellId of HRworks matches the employeeId on the directory element.
-// This can later serve as unique identifier. For this check we will match the persons by email address.
-
-//const filteredUsers: PersonBaseData[] = hrWorks.filterMissingEMails(masterData);
-//logger.debug(filteredUsers);

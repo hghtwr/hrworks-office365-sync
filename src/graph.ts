@@ -79,9 +79,6 @@ export async function listUsers(select?: string[], filter?: string): Promise<Use
 
   await pageIterator.iterate();
   return results;
-  //return (await appClient.api("/users").select(select).get()).value;
-
-  // return appClient.api("/users?$select=displayName,assignedPlans,assignedLicenses").get();
 }
 
 export async function getSkuId(
@@ -123,7 +120,11 @@ async function listSubscribedSkus(): Promise<SubscribedSku[]> {
   }
 }
 
-
+/**
+ * This will take a string and replace the umlauts (ü, ä, ö, ß) by its corresponding asci pendandt (ue, ae, oe, ss)
+ * @param email string for email
+ * @returns
+ */
 function replaceUmlaut(email: string){
   email = email.replace(/\u00fc/g, "ue")
   email = email.replace(/\u00e4/g, "ae")
@@ -154,7 +155,14 @@ async function getFreshUpn(personBaseData: ReducedPersonDetailData) {
   return `${normalizedName}${process.env.EMAIL_DOMAIN}`;
 }
 
-export function scaffoldAndCreateUser(reducedPersonBaseData: ReducedPersonDetailData[]): Promise<ReducedPersonDetailData>[]{
+/**
+ * Will prepare user objects and then send them to AAD for the user to be created.
+ * It will use getFreshUpn to determine a upn from firstname.lastname.
+ * If the user already exists, it will suffix the upn with -1, -2, -3, etc.
+ * @param reducedPersonBaseData[] The reduced data for the user  from hrWorks.reduceMasterData
+ * @returns reducedPersonBaseData[] extended with additional field of businessMail
+ */
+export function scaffoldAndCreateUsers(reducedPersonBaseData: ReducedPersonDetailData[]): Promise<ReducedPersonDetailData>[]{
   return reducedPersonBaseData.map(async person => {
     try {
       const upn = await getFreshUpn(person);
@@ -187,7 +195,11 @@ export function scaffoldAndCreateUser(reducedPersonBaseData: ReducedPersonDetail
     }
   });
 }
-
+/**
+ *
+ * @param createObject The payload for user creation as described in https://learn.microsoft.com/en-us/graph/api/user-post-users?view=graph-rest-1.0&tabs=javascript
+ * @returns AAD User https://graph.microsoft.com/v1.0/$metadata#users/$entity
+ */
 async function createUser(createObject: User) {
   try {
       const response = await appClient.api('/users').post(createObject);
