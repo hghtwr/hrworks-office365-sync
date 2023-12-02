@@ -9,7 +9,8 @@ import { SubscribedSku, User } from '@microsoft/microsoft-graph-types';
 import { ClientSecretCredential } from '@azure/identity';
 import { TokenCredentialAuthenticationProvider } from '@microsoft/microsoft-graph-client/authProviders/azureTokenCredentials/index.js';
 import logger from './logger.js';
-import { PersonBaseData } from './hrworks.js';
+import { ReducedPersonDetailData } from './hrworks.js';
+import { create } from 'domain';
 
 let clientSecretCredentials: ClientSecretCredential | undefined = undefined;
 let appClient: Client | undefined = undefined;
@@ -61,14 +62,14 @@ export async function getAppOnlyToken(): Promise<string> {
   }
 }
 
-export async function listUsers(
-  select?: string[],
-  filter?: string[]
-): Promise<User[]> {
+export async function listUsers(select?: string[], filter?: string): Promise<User[]> {
   const results = [];
+  select = (select) ? select : [""];
+  filter = (filter) ? filter : "";
   const response: PageCollection = await appClient
     .api('/users?$top=999')
     .select(select)
+    .filter(filter)
     .get();
   const callback: PageIteratorCallback = (result) => {
     results.push(result);
@@ -122,10 +123,82 @@ async function listSubscribedSkus(): Promise<SubscribedSku[]> {
   }
 }
 
-export async function createUsers(personBaseData: PersonBaseData[]) {
-  for (let i = 0; i < personBaseData.length; i++) {
-    logger.debug({
-      message: `Create user for ${personBaseData[i].personnelNumber}: ${personBaseData[i].lastName}, ${personBaseData[i].firstName}`
-    });
+
+function replaceUmlaut(email: string){
+  email = email.replace(/\u00fc/g, "ue")
+  email = email.replace(/\u00e4/g, "ae")
+  email = email.replace(/\u00f6/g, "oe")
+  email = email.replace(/\u00df/g, "ss")
+  return email;
+
+}
+
+/**
+ *
+ * @param personBaseData
+ *
+ */
+async function getFreshUpn(personBaseData: ReducedPersonDetailData) {
+  let normalizedName = replaceUmlaut((`${personBaseData.firstName}.${personBaseData.lastName}`).replace(" ", "-").toLowerCase());
+  //let existingUser = await listUsers([""], "filter");
+
+  let existingUser = await listUsers(undefined, `mail eq '${normalizedName}${process.env.EMAIL_DOMAIN}'`);
+  let suffix = 1;
+
+  while(existingUser.length != 0) {
+    normalizedName = normalizedName+suffix;
+    existingUser = await listUsers([], `'mail eq '${normalizedName}${process.env.EMAIL_DOMAIN}'`);
+    suffix++;
+  }
+
+  return `${normalizedName}${process.env.EMAIL_DOMAIN}`;
+}
+
+export function scaffoldAndCreateUser(reducedPersonBaseData: ReducedPersonDetailData[]): Promise<ReducedPersonDetailData>[]{
+  return reducedPersonBaseData.map(async person => {
+    try {
+      const upn = await getFreshUpn(person);
+
+      const createObject = {
+        accountEnabled: true,
+        displayName: `${person.firstName} ${person.lastName}`,
+        mailNickname: upn,
+        passwordProfile: {
+          "forceChangePasswordNextSignIn": true,
+          "forceChangePasswordNextSignInWithMfa": false,
+          "password": "string"
+        },
+        userPrincipleName: upn
+      }
+      logger.debug({
+        message: `Scaffold user for ${person.personnelNumber}: ${person.lastName}, ${person.firstName}.`,
+        createObject: createObject,
+      });
+
+      await createUser(createObject);
+      person.businessEmail = upn;
+      return person;
+
+    }catch (error) {
+      logger.info({
+        message: "Error scaffolding user",
+        error: error
+      })
+    }
+  });
+}
+
+async function createUser(createObject: User) {
+  try {
+      const response = await appClient.api('/users').post(createObject);
+      const user: User = response.body;
+      return user;
+  }catch (error) {
+    logger.info({
+      message: "Error creating user",
+      error: error
+    })
   }
 }
+
+
