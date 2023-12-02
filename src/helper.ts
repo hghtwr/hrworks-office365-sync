@@ -31,11 +31,13 @@ export function matchUpnToMasterData(
         person.userUpnCount = 1;
         return person;
       } else {
+
         logger.debug({
           message: `Found ${filteredUpnData.length} upn's for ${person.personId}`,
           filteredUpnData: filteredUpnData,
           person: person
         });
+
         person.userUpnCount = filteredUpnData.length;
         return person;
 

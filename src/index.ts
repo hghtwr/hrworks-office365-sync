@@ -30,7 +30,10 @@ if(process.env.MODE === "Create" || process.env.MODE === "CreateSync") {
 
   const missingUsers = helper.getMissingUsers(matchedData);
   //Enrichen the affected metadata by additional necessary fields. This function can be reused for other updates on AAD as well.
-  let reducedDetailMasterData: ReducedPersonDetailData = hrWorks.reduceMasterData(await hrWorks.fetchDetailMasterData(missingUsers));
+  let reducedDetailMasterData: ReducedPersonDetailData[] = hrWorks.reduceMasterData(await hrWorks.fetchDetailMasterData(missingUsers));
+
+  graph.createUsers(reducedDetailMasterData);
+
   // Now we can go ahead and create the user in AAD. Later it will be synced if sync mode is in CreateSync.
   // TO-DO: Add user add procedure to AAD
 }
